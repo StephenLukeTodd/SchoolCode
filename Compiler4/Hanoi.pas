@@ -1,0 +1,17 @@
+VAR A; 
+
+PROCEDURE HANOISOLO(VAL B; VAL C; VAL D; VAL E);
+BEGIN
+    IF B >= 1 THEN 
+    BEGIN
+        CALL HANOISOLO(B-1, C, E, D); 
+        WRITELN(C,D); 
+        CALL HANOISOLO(B-1, E, D, C); 
+    END; 
+END; 
+
+BEGIN
+A := 4;
+CALL HANOISOLO(A, 1,2,3); 
+END. 
+      

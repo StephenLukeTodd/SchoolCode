@@ -12,8 +12,10 @@ Additions:
 >Tablevalue now has a new argument for params
 >Added in LDA, STI, and LDI commands
 >Added in value and reference into enter function
->Added declarations for Value and Reference 
->Added in Call and 
+>Added declarations for Value and Reference
+>Added in arguments tx0 for Statement, General Expression, expression, statement, factor.
+>Added in params for TableValue.
+>Added in arguments for enter. 
  
 '''
 import sys, string
@@ -980,6 +982,7 @@ rword.append('VAR')
 rword.append('WHILE')
 rword.append('WRITE')
 rword.append('WRITELN')
+#Words added in were Val and Ref. 
 
 #Added NOT, OR, AND, FUNCTION
 ssym = {'+' : "plus",

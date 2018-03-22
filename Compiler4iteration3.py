@@ -5,7 +5,7 @@ Project: Compiler Assignment 4. To even further extend the Pascal0 compiler by i
 ability to parse and generate the appropriate p-Code for the following constructs:
 *Value parameters
 *Reference parameters
-###Fixed Getsym and eliminated argument declaration
+
 Additions: 
 >Added new reserved words.
 >Increased number reserved words to 28  
@@ -13,12 +13,11 @@ Additions:
 >Added in LDA, STI, and LDI commands
 >Added in value and reference into enter function
 >Added declarations for Value and Reference 
->Added in Call and 
  
 '''
 import sys, string
 
-norw = 28      #number of reserved words
+norw = 28       #number of reserved words
 txmax = 100   #length of identifier table
 nmax = 14      #max number of digits in number
 al = 10          #length of identifiers
@@ -451,7 +450,7 @@ def block(tableIndex, level):
     tx0 = tableIndex
     dx = 3
     cx1 = codeIndx
-    gen("JMP", 0 , 0)
+    gen("JMP", 0 , 0) ###MOVE UP UNDER HERE!
     if level > 0: 
         if sym != "semicolon" and sym != "lparen":
             error(3) #Placeholder error
@@ -483,10 +482,9 @@ def block(tableIndex, level):
             if sym != "semicolon": 
                 error(17)
             getsym()
-
-
-    #Needed to add in that to be able to interpret functions properly. 
-    while sym == "PROCEDURE" or sym == "VAR" or sym == "CONST" or sym == "FUNCTION": 
+            #END Modifications
+    #Needed to add in REF, VAL, lparen, and semicolon to be able to interpret functions properly. 
+    while sym in["PROCEDURE","VAR", "CONST", "FUNCTION"]: 
         if sym == "CONST":
             while True:               #makeshift do while in python
                 getsym()
@@ -517,10 +515,8 @@ def block(tableIndex, level):
                 else: 
                     enter(tx, "function", level, codeIndx)
                     getsym()
-
             else:
                 error(4)
-
             block(tx[0], level+ 1)
             if sym != "semicolon":
                 error(10)
@@ -530,19 +526,20 @@ def block(tableIndex, level):
         table[tx0].adr = codeIndx
     codeIndx0 = codeIndx
     gen("INT", 0, dx)
-    statement(tx[0], level, tx0) #process tx0
+    statement(tx[0], level, tx) #process tx0
     gen("OPR", 0, 0)
     #print code for this block
     printCode()
 #--------------STATEMENT----------------------------------------
-def statement(tx, level, tx0):
+def statement(tx, level, indx):
     global sym, id, num;
+    ###Indx = tx0 in lecture
 #can also be function
     if sym == "ident": 
         i = position(tx, id)
         if i == 0: 
             error(11)
-        if table[i].kind != "variable" and table[i].kind != "function" and table[i].kind != "val" and table[i].kind != "ref" :
+        if table[i].kind not in ["function", "ref", "variable", "val"]:
             error(39) 
 
         kind_ident = table[i].kind 
@@ -550,17 +547,20 @@ def statement(tx, level, tx0):
         if sym != "becomes": 
             error(13)
         getsym()
-        expression(tx, level, tx0)
-        if kind_ident ==  "variable" or kind_ident == "val": 
+        expression(tx, level, tx0) 
+        #Add in pass by value
+        if kind_ident == "variable" or kind_ident == "val": 
             gen("STO", level - table[i].level, table[i].adr)
-        elif kind_ident =="function": 
-            if i != tx0:
-                getsym() 
-                error(41)
+        elif kind_ident =="function":
+            if i != indx:
+                error(39)
             gen("STO", 0, -1)
-        elif kind_ident == "ref": 
+        ##Add in pass by reference 
+        elif kind_ident == "ref":
             gen("STI", level - table[i].level, table[i].adr)
-    ##BEGIN MODIFICATIONS
+
+
+
     elif sym == "CALL":
         getsym()
         if sym != "ident":
@@ -570,19 +570,19 @@ def statement(tx, level, tx0):
             error(11)
         if table[i].kind != "procedure":
             error(15)
-        getsym()
+        getsym() 
         if sym == "lparen": 
             p = 0
             gen("INT", 0, 3)
             while True: 
                 getsym()
-                if table[i].params[p]:
+                if table[i].params(p):
                     if sym == "ident": 
                         j = position(tx, id)
                         #Set j = to position to prevent variable conflictions
                         if table[j].kind == "variable" or table[j].kind == "val": 
                             gen("LDA", level-table[j].level, table[j].adr)
-                        elif table[j].kind == "ref": 
+                        elif table[Tar_Value].kind == "ref": 
                             gen("LOD", level-table[j].level, table[j].adr)
                     else: 
                         error(39)
@@ -597,27 +597,28 @@ def statement(tx, level, tx0):
             getsym()
             gen("INT", 0, -1*(3+p))
         gen("CAL", level - table[i].level, table[i].adr)
-        ###END MODIFICATIONS
+
     elif sym == "IF":
         getsym()
-        GeneralExpression(tx, level, tx0)
-
+        expression(tx, level, tx0)
         cx1 = codeIndx
         gen("JPC", 0, 0)
-       
         if sym != "THEN":
             error(16)
         getsym()
         #Pass tx(n)
-        statement(tx, level, tx0) #Added ability to pass 
-
+        tx1 = position(tx, id)
+        statement(tx, level, tx1) #Added ability to pass tx0
+        fixJmp(cx1, codeIndx)
+        ####Imported Else Code
         if sym == "ELSE":
             getsym()
             cx2 = codeIndx
             gen("JMP", 0,0)
             fixJmp(cx1, codeIndx)
             #Pass tx(n)
-            statement(tx, level, tx0)
+            tx2 = position(tx, id)
+            statement(tx, level, tx2)
             fixJmp(cx2, codeIndx)
         else: 
             fixJmp(cx1, codeIndx)
@@ -626,7 +627,8 @@ def statement(tx, level, tx0):
     elif sym == "BEGIN":
         while True:
             getsym()
-            statement(tx, level, tx0)
+            tx3 = position(tx, id)
+            statement(tx, level, tx3)
             if sym != "semicolon":
                 break
         if sym != "END":
@@ -643,26 +645,28 @@ def statement(tx, level, tx0):
             error(18)
         getsym()
         #Pass tx(n)
-        statement(tx, level, tx0)
+        tx4 = position(tx, id)
+        statement(tx, level, tx4)
         
         gen("JMP", 0, cx1)
         fixJmp(cx2, codeIndx)
 
 ###Imported REPEAT
     elif sym == 'REPEAT':
-        cx1 = codeIndx
+        cx = codeIndx
         while True:
             getsym()
             #Pass tx(n)
-            statement(tx, level, tx0)
+            tx5 = position(tx, id)
+            statement(tx, level, tx5)
             if sym != 'semicolon':
                 break
         if sym != 'UNTIL':
             error(29)
         getsym()
-        GeneralExpression(tx, level, tx0)
+        expression(tx, level, tx0)
 
-        gen("JPC", 0, cx1)
+        gen("JPC", 0, cx)
 
 ###Imported FOR
     
@@ -673,7 +677,7 @@ def statement(tx, level, tx0):
         i = position(tx, id)
         if i==0:
             error(11)
-        if table[i].kind != "variable":
+        elif table[i].kind != "variable":
             error(12)
         getsym()
         if sym != 'becomes':
@@ -703,7 +707,9 @@ def statement(tx, level, tx0):
         if sym != 'DO':
             error(1)
         getsym()
-        statement(tx, level, tx0)
+        #Pass tx(n)
+        tx6 = position(tx, id)
+        statement(tx, level, tx6)
 
         gen("LOD", level - table[i].level, table[i].adr)
         gen("LIT", 0, 1)
@@ -729,9 +735,7 @@ def statement(tx, level, tx0):
             getsym()
             if sym != "number" and sym != "ident": 
                 break 
-
             gen("CTS", 0, 0)
-
             if sym == "ident":
                 i = position(tx, id)
                 if i == 0: 
@@ -739,23 +743,19 @@ def statement(tx, level, tx0):
                 elif table[i].kind != "const": 
                     error(25)
                 else: 
-
                     gen("LIT", 0, table[i].value)
-
             elif sym == "number": 
                 gen("LIT", 0, num)
             
             getsym()
-
             gen("OPR", 0, 8)
             cx1 = codeIndx
             gen("JPC", 0, 0)
-
             if sym != "colon":
                 error(34)
             getsym()
-            
-            statement(tx, level, tx0)
+            tx7 = position(tx, id)
+            statement(tx, level, tx7)
             if sym != "semicolon": 
                 error(17)
 
@@ -769,13 +769,11 @@ def statement(tx, level, tx0):
         if sym != 'CEND':
             error(33)
         getsym()
-        
         fixJmp(cx2, codeIndx)
         gen("INT", 0, -1)
         
 ###Imported WRITE
-    elif sym == "WRITE":
-        sym1 = sym  
+    elif sym == "WRITE": 
         getsym()
         if sym != 'lparen': 
             error(28)
@@ -788,11 +786,9 @@ def statement(tx, level, tx0):
         if sym != 'rparen': 
             error(22)
         getsym()
-        if sym1 == "WRITELN": 
-            gen("OPR", 0, 15)
 
-    elif sym == "WRITELN":
-        sym1 = sym  
+###Imported WRITELN
+    elif sym == "WRITELN": 
         getsym()
         if sym != 'lparen': 
             error(28)
@@ -805,11 +801,9 @@ def statement(tx, level, tx0):
         if sym != 'rparen': 
             error(22)
         getsym()
-        if sym1 == "WRITELN": 
-            gen("OPR", 0, 15)
+        gen("OPR", 0, 15)
 
 #--------------EXPRESSION--------------------------------------
-#Working
 def expression(tx, level, tx0):
     global sym;
     if sym == "plus" or sym == "minus": 
@@ -834,7 +828,6 @@ def expression(tx, level, tx0):
             gen("OPR", 0, 2)
 
 #-------------TERM----------------------------------------------------
-#Working
 def term(tx, level, tx0):
     global sym;
     factor(tx, level, tx0)
@@ -852,20 +845,24 @@ def term(tx, level, tx0):
 #-------------FACTOR--------------------------------------------------
 def factor(tx, level, tx0):
     global sym, num, id;
-    #can also be a val or ref
     if sym == "ident":
         i = position(tx, id)
         if i==0:
             error(11)
         if table[i].kind == "const":
             gen("LIT", 0, table[i].value)
+        #Added in passing by Value.
         elif table[i].kind == "variable" or table[i].kind == "val":
             gen("LOD", level-table[i].level, table[i].adr)
-        elif table[i].kind == "ref":
+        #Added in passing by Reference. 
+        elif table[i].kind == "ref": 
             gen("LDI", level-table[i].level, table[i].adr)
+        #Throwing an error if a function is passed through. 
         elif table[i].kind == "procedure" or table[i].kind == "function":
-            error(39)
+            error(21)
         getsym()
+        
+
     elif sym == "number":
         gen("LIT", 0, num)
         getsym()
@@ -873,56 +870,54 @@ def factor(tx, level, tx0):
         getsym()
         GeneralExpression(tx, level, tx0)
         if sym != "rparen":
-            error(22)
+            error(39)
         getsym()
-
-    #CALL method
+    ##Begin Modifications
     elif sym == "CALL":
         getsym()
         if sym != "ident":
-          error(14)
+            error(14)
         i = position(tx, id)
         if i==0:
-          error(11)
+            error(11)
         if table[i].kind != "function":
-          error(39)
-        getsym()
-        gen("INT", 0, 1)
-        if sym == "lparen":
+            error(15)
+        getsym() 
+        if sym == "lparen": 
             p = 0
             gen("INT", 0, 3)
-            while True:
+            while True: 
                 getsym()
-                if table[i].params[p]:
-                    if sym == "ident":
-                        #Target cases accounted for. 
-                        j = position(tx,id)
-                        if table[j].kind == "variable" or table[j].kind == "val":
-                            gen("LDA", level - table[j].level, table[j].adr)
-                        elif table[j].kind == "ref":
-                            gen("LOD", level - table[j].level, table[j].adr)
-                    else:
+                if table[i].params(p):
+                    if sym == "ident": 
+                        j = position(tx, id)
+                        #Set j = to position to prevent variable conflictions
+                        if table[j].kind == "variable" or table[j].kind == "val": 
+                            gen("LDA", level-table[j].level, table[j].adr)
+                        elif table[j].kind == "ref": 
+                            gen("LOD", level-table[j].level, table[j].adr)
+                    else: 
                         error(39)
                     getsym()
-                else:
+                else: 
                     expression(tx, level, tx0)
-                p+=1
-                if sym != "comma":
+                p += 1
+                if sym != "comma": 
                     break
-            if sym != "rparen":
-                error(22)
+            if sym != "rparen":  
+                error(39)
             getsym()
             gen("INT", 0, -1*(3+p))
-        gen("CAL",level - table[i].level, table[i].adr)
-
-    #add not to factor
+        gen("CAL", level - table[i].level, table[i].adr)
+        #END MODIFICATIONS
     elif sym == "NOT":
         getsym()
-        factor(tx,level, tx0)
+        factor(tx, level, tx0)
         gen("LIT", 0, 0)
-        gen("OPR", 0, 8)
-    else:    
-        error(24)    
+        gen("OPR", 0, 8) 
+    else:
+        error(24)
+
 #-----------GeneralExpression-------------------------------------------------
 def GeneralExpression(tx, level, tx0):
     #renamed from condition
@@ -933,10 +928,9 @@ def GeneralExpression(tx, level, tx0):
         gen("OPR", 0, 6)
     else:
         expression(tx, level, tx0)
-        temp = sym
-        if (temp in ["eql","neq","lss","leq","gtr","geq"]):
+        if (sym in ["eql","neq","lss","leq","gtr","geq"]):
             #error(20)
-            
+            temp = sym
             getsym()
             expression(tx, level, tx0)
             if temp == "eql":
@@ -980,8 +974,7 @@ rword.append('VAR')
 rword.append('WHILE')
 rword.append('WRITE')
 rword.append('WRITELN')
-
-#Added NOT, OR, AND, FUNCTION
+#Added VAL and REF
 ssym = {'+' : "plus",
              '-' : "minus",
              '*' : "times",       

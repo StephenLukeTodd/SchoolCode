@@ -13,7 +13,7 @@ Additions:
 >Added in LDA, STI, and LDI commands
 >Added in value and reference into enter function
 >Added declarations for Value and Reference 
->Added in Call and 
+>Added in call for reference and values. 
  
 '''
 import sys, string
@@ -29,7 +29,7 @@ chars = []
 rword = []
 table = []         #symbol table
 code = []         #code array
-stack = [10] * STACKSIZE     #interpreter stack
+stack = [0] * STACKSIZE     #interpreter stack
 global infile, outfile, ch, sym, id, num, linlen, kk, line, errorFlag, linelen, codeIndx, prevIndx, codeIndx0
 #-------------values to put in the symbol table------------------------------------------------------------
 class tableValue():                          
@@ -980,7 +980,7 @@ rword.append('VAR')
 rword.append('WHILE')
 rword.append('WRITE')
 rword.append('WRITELN')
-
+#Added in VAL and REF
 #Added NOT, OR, AND, FUNCTION
 ssym = {'+' : "plus",
              '-' : "minus",
